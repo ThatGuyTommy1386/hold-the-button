@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Hold The Button - Prototype</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      touch-action: none;
+    }
+
+    #hud {
+      text-align: center;
+      padding-top: 30px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #timer {
+      font-size: 4rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      margin: 0;
+      color: #38bdf8;
+    }
+
+    #best-score {
+      font-size: 1rem;
+      color: #94a3b8;
+      margin-top: 5px;
+    }
+
+    #lives {
+      margin-top: 8px;
+      color: #fda4af;
+      font-weight: 700;
+    }
+
+    #status-msg {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-top: 10px;
+      min-height: 1.5em;
+      color: #fbbf24;
+    }
+
+    #arena {
+      position: relative;
+      width: 100%;
+      flex-grow: 1;
+    }
+
+    #hold-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 4px solid #38bdf8;
+      background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
+      color: #ffffff;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.3);
+      transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.2s ease;
+    }
+
+    #hold-btn.active {
+      transform: translate(-50%, -50%) scale(0.92);
+      border-color: #22c55e;
+      box-shadow: 0 0 40px rgba(34, 197, 94, 0.6);
+      background: radial-gradient(circle, #14532d 0%, #0f172a 100%);
+    }
+
+    #hold-btn.warning {
+      border-color: #fbbf24;
+      box-shadow: 0 0 35px rgba(251, 191, 36, 0.55);
+    }
+
+    #hold-btn.failed {
+      border-color: #ef4444;
+      box-shadow: 0 0 40px rgba(239, 68, 68, 0.6);
+    }
+
+    body.screen-shake {
+      animation: screen-shake 0.24s ease-in-out;
+    }
+
+    @keyframes screen-shake {
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-3px); }
+    }
+
+    #shop-modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+
+    #shop-modal.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      width: 90%;
+      max-width: 320px;
+      padding: 30px;
+      border: 2px solid #38bdf8;
+      border-radius: 20px;
+      background: #1e293b;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-card h2 {
+      margin-top: 0;
+      color: #38bdf8;
+      font-size: 1.5rem;
+    }
+
+    .shop-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+
+    .shop-btn:active:not(:disabled) {
+      transform: scale(0.96);
+    }
+
+    .shop-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .btn-pay {
+      background-color: #22c55e;
+      color: white;
+    }
+
+    .btn-ad {
+      background-color: #3b82f6;
+      color: white;
+    }
+
+    .btn-giveup {
+      margin-top: 15px;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+
+    .shop-notice {
+      margin-bottom: 0;
+      color: #cbd5e1;
+      font-size: 0.9rem;
+    }
+
+    footer {
+      padding-bottom: 20px;
+      font-size: 0.85rem;
+      color: #64748b;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div id="timer">0.00s</div>
+    <div id="best-score">Best: 0.00s</div>
+    <div id="lives" aria-live="polite">Lives: <span id="lives-count">3</span></div>
+    <div id="status-msg">Press and hold the circle to start</div>
+  </div>
+
+  <div id="arena">
+    <div id="hold-btn">HOLD ME</div>
+  </div>
+
+  <footer>Don't lift your finger or let it drift off the circle.</footer>
+
+  <div id="shop-modal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="shop-title">
+      <h2 id="shop-title">OUT OF LIVES!</h2>
+      <p>Don't lose your streak. Save your run right now!</p>
+      <p class="shop-notice">Prototype simulation only: no payment is charged and no ad is shown.</p>
+      <button class="shop-btn btn-pay" id="buy-life-btn" type="button">⚡ Simulate Extra Life ($0.99)</button>
+      <button class="shop-btn btn-ad" id="watch-ad-btn" type="button">📺 Simulate Reward Ad for +1 Life</button>
+      <button class="shop-btn btn-giveup" id="give-up-btn" type="button">No thanks, end game</button>
+    </div>
+  </div>
+
+  <script>
+    const btn = document.getElementById('hold-btn');
+    const timerDisplay = document.getElementById('timer');
+    const bestDisplay = document.getElementById('best-score');
+    const statusMsg = document.getElementById('status-msg');
+    const shopModal = document.getElementById('shop-modal');
+    const livesCount = document.getElementById('lives-count');
+    const giveUpBtn = document.getElementById('give-up-btn');
+    const buyLifeBtn = document.getElementById('buy-life-btn');
+    const watchAdBtn = document.getElementById('watch-ad-btn');
+
+    const startingLives = 3;
+    let isHolding = false;
+    let gameHasEnded = false;
+    let lives = startingLives;
+    let holdStartedAt = 0;
+    let accumulatedTime = 0;
+    let elapsedTime = 0;
+    let animationFrameId = null;
+
+    let posX = 50;
+    let posY = 50;
+    let velX = 0.15;
+    let velY = 0.12;
+
+    let bestTime = parseFloat(localStorage.getItem('holdGameBest')) || 0;
+    bestDisplay.textContent = `Best: ${bestTime.toFixed(2)}s`;
+
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    function startHold(e) {
+      e.preventDefault();
+      if (isHolding) return;
+      if (gameHasEnded) resetGame();
+
+      isHolding = true;
+      holdStartedAt = performance.now();
+      btn.classList.remove('failed', 'warning');
+      btn.classList.add('active');
+      btn.textContent = 'KEEP HOLDING';
+      statusMsg.textContent = 'Stay on the target...';
+
+      velX = (Math.random() > 0.5 ? 1 : -1) * 0.15;
+      velY = (Math.random() > 0.5 ? 1 : -1) * 0.15;
+
+      updateLoop();
+    }
+
+    function endHold(reason = 'You let go!') {
+      if (!isHolding) return;
+
+      isHolding = false;
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+      accumulatedTime += performance.now() - holdStartedAt;
+      elapsedTime = accumulatedTime / 1000;
+      btn.classList.remove('active');
+      lives--;
+      updateLivesVisual();
+      triggerScreenFX();
+
+      if (lives > 0) {
+        playDamageBuzz();
+        btn.classList.add('warning');
+        btn.textContent = 'RE-GRAB';
+        statusMsg.textContent = `${reason} ${lives} lives left. Hold to resume!`;
+        return;
+      }
+
+      playGameOverSound();
+      btn.classList.add('failed');
+      btn.textContent = 'SAVING RUN...';
+      statusMsg.textContent = `Run paused at ${elapsedTime.toFixed(2)}s`;
+      shopModal.classList.add('visible');
+      shopModal.setAttribute('aria-hidden', 'false');
+      giveUpBtn.focus();
+    }
+
+    function updateLivesVisual() {
+      livesCount.textContent = lives;
+    }
+
+    function triggerScreenFX() {
+      document.body.classList.remove('screen-shake');
+      void document.body.offsetWidth;
+      document.body.classList.add('screen-shake');
+      setTimeout(() => document.body.classList.remove('screen-shake'), 250);
+    }
+
+    function playTone(frequency, duration) {
+      const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextConstructor) return false;
+
+      const audioContext = new AudioContextConstructor();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.08, audioContext.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.onended = () => audioContext.close();
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + duration);
+      return true;
+    }
+
+    function playDamageBuzz() {
+      if (!playTone(180, 0.12) && 'vibrate' in navigator) {
+        navigator.vibrate(120);
+      }
+    }
+
+    function playGameOverSound() {
+      if (!playTone(110, 0.45) && 'vibrate' in navigator) {
+        navigator.vibrate([140, 60, 220]);
+      }
+    }
+
+    function buyExtraLife() {
+      alert('Simulated In-App Purchase successful! No payment was charged.');
+      grantLifeAndResume();
+    }
+
+    function watchAdForLife() {
+      alert('Simulated reward ad complete! No ad was shown.');
+      grantLifeAndResume();
+    }
+
+    function grantLifeAndResume() {
+      lives = 1;
+      updateLivesVisual();
+      shopModal.classList.remove('visible');
+      shopModal.setAttribute('aria-hidden', 'true');
+
+      btn.classList.remove('failed');
+      btn.classList.add('warning');
+      btn.textContent = 'RE-GRAB';
+      statusMsg.textContent = 'Life restored! Hold the button to resume your score.';
+    }
+
+    function gameOverFinal() {
+      gameHasEnded = true;
+      shopModal.classList.remove('visible');
+      shopModal.setAttribute('aria-hidden', 'true');
+      btn.textContent = 'GAME OVER';
+      statusMsg.textContent = `Final score: ${elapsedTime.toFixed(2)}s`;
+
+      if (elapsedTime > bestTime) {
+        bestTime = elapsedTime;
+        localStorage.setItem('holdGameBest', bestTime);
+        bestDisplay.textContent = `Best: ${bestTime.toFixed(2)}s`;
+        statusMsg.textContent = `NEW RECORD! ${bestTime.toFixed(2)}s`;
+      }
+
+      setTimeout(() => {
+        if (gameHasEnded && !isHolding) {
+          posX = 50;
+          posY = 50;
+          btn.style.left = `${posX}%`;
+          btn.style.top = `${posY}%`;
+          btn.textContent = 'PLAY AGAIN';
+        }
+      }, 1500);
+    }
+
+    function resetGame() {
+      gameHasEnded = false;
+      lives = startingLives;
+      accumulatedTime = 0;
+      elapsedTime = 0;
+      timerDisplay.textContent = '0.00s';
+      updateLivesVisual();
+      btn.classList.remove('failed', 'warning');
+      btn.style.left = '50%';
+      btn.style.top = '50%';
+    }
+
+    function updateLoop() {
+      if (!isHolding) return;
+
+      const now = performance.now();
+      elapsedTime = (accumulatedTime + now - holdStartedAt) / 1000;
+      timerDisplay.textContent = `${elapsedTime.toFixed(2)}s`;
+
+      if (elapsedTime > 5) {
+        if (elapsedTime < 5.1) {
+          statusMsg.textContent = 'Watch out! Keep moving!';
+        }
+
+        const speedMultiplier = 1 + (elapsedTime - 5) * 0.08;
+        posX += velX * speedMultiplier;
+        posY += velY * speedMultiplier;
+
+        if (posX <= 15 || posX >= 85) velX *= -1;
+        if (posY <= 15 || posY >= 85) velY *= -1;
+
+        btn.style.left = `${posX}%`;
+        btn.style.top = `${posY}%`;
+      }
+
+      animationFrameId = requestAnimationFrame(updateLoop);
+    }
+
+    btn.addEventListener('pointerdown', startHold);
+    btn.addEventListener('pointerup', () => endHold('You lifted your finger!'));
+    btn.addEventListener('pointerleave', () => endHold('You slipped off the circle!'));
+    btn.addEventListener('pointercancel', () => endHold('Touch interrupted!'));
+    giveUpBtn.addEventListener('click', gameOverFinal);
+    buyLifeBtn.addEventListener('click', buyExtraLife);
+    watchAdBtn.addEventListener('click', watchAdForLife);
+  </script>
+</body>
+</html>
